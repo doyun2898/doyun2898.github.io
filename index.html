@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>숭배 버튼</title>
+    <title>숭배 버튼 및 게시판</title>
     <style>
         body {
             display: flex;
@@ -31,12 +31,59 @@
         .button:hover {
             background-color: #0056b3;
         }
+        .chat-container {
+            margin-top: 30px;
+            width: 80%;
+            max-width: 800px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 10px;
+        }
+        .message .nickname {
+            font-weight: bold;
+        }
+        .message .count {
+            color: #007BFF;
+        }
+        .input-container {
+            display: flex;
+        }
+        .input-container input {
+            flex: 1;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .input-container button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .input-container button:hover {
+            background-color: #0056b3;
+        }
     </style>
-    <!-- Firebase 설정 코드를 포함합니다 -->
+    <!-- Firebase 설정 코드 -->
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, push, runTransaction } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-analytics.js";
 
         // Your web app's Firebase configuration
@@ -56,10 +103,14 @@
         const analytics = getAnalytics(app);
         const database = getDatabase(app);
 
-        document.addEventListener('DOMContentLoaded', (event) => {
+        document.addEventListener('DOMContentLoaded', () => {
             const counterElement = document.getElementById('counter');
             const buttonElement = document.getElementById('worshipButton');
             const countRef = ref(database, 'count');
+            const messagesRef = ref(database, 'messages');
+            const usersRef = ref(database, 'users');
+
+            let username = `User${Math.floor(Math.random() * 10000)}`;
 
             // 실시간으로 데이터베이스 값 가져오기
             onValue(countRef, (snapshot) => {
@@ -71,7 +122,42 @@
             buttonElement.addEventListener('click', () => {
                 runTransaction(countRef, (currentCount) => {
                     return (currentCount || 0) + 1;
+                }).then(() => {
+                    // Update user's click count
+                    const userRef = ref(database, `users/${username}`);
+                    runTransaction(userRef, (user) => {
+                        return (user || 0) + 1;
+                    });
                 });
+            });
+
+            // 실시간으로 메시지 가져오기
+            onValue(messagesRef, (snapshot) => {
+                const messages = snapshot.val();
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.innerHTML = '';
+                for (const id in messages) {
+                    const message = messages[id];
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('message');
+                    messageElement.innerHTML = `<span class="nickname">${message.username}</span>: ${message.text} <span class="count">(${message.count || 0} clicks)</span>`;
+                    messagesContainer.appendChild(messageElement);
+                }
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
+            });
+
+            // 메시지 전송 처리
+            document.getElementById('sendMessage').addEventListener('click', () => {
+                const messageInput = document.getElementById('messageInput');
+                const messageText = messageInput.value;
+                if (messageText) {
+                    const newMessageRef = push(messagesRef);
+                    set(newMessageRef, {
+                        username: username,
+                        text: messageText
+                    });
+                    messageInput.value = ''; // Clear input
+                }
             });
         });
     </script>
@@ -79,5 +165,13 @@
 <body>
     <div class="counter" id="counter">0</div>
     <button class="button" id="worshipButton">숭배</button>
+
+    <div class="chat-container">
+        <div class="messages" id="messages"></div>
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="메시지를 입력하세요...">
+            <button id="sendMessage">전송</button>
+        </div>
+    </div>
 </body>
 </html>
