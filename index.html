@@ -27,6 +27,7 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
         .button:hover {
             background-color: #0056b3;
@@ -48,12 +49,6 @@
         }
         .message {
             margin-bottom: 10px;
-        }
-        .message .nickname {
-            font-weight: bold;
-        }
-        .message .count {
-            color: #007BFF;
         }
         .input-container {
             display: flex;
@@ -78,12 +73,25 @@
         .input-container button:hover {
             background-color: #0056b3;
         }
+        @keyframes rainbow {
+            0% { background-color: #ff0000; }
+            14% { background-color: #ff7f00; }
+            28% { background-color: #ffff00; }
+            42% { background-color: #00ff00; }
+            57% { background-color: #0000ff; }
+            71% { background-color: #4b0082; }
+            85% { background-color: #9400d3; }
+            100% { background-color: #ff0000; }
+        }
+        .rainbow {
+            animation: rainbow 10s linear infinite;
+        }
     </style>
     <!-- Firebase 설정 코드 -->
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, push, runTransaction } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, push, runTransaction, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-analytics.js";
 
         // Your web app's Firebase configuration
@@ -108,7 +116,7 @@
             const buttonElement = document.getElementById('worshipButton');
             const countRef = ref(database, 'count');
             const messagesRef = ref(database, 'messages');
-            const usersRef = ref(database, 'users');
+            const audio = new Audio('https://www.soundjay.com/button/beep-07.wav'); // 효과음 URL
 
             let username = `User${Math.floor(Math.random() * 10000)}`;
 
@@ -116,6 +124,21 @@
             onValue(countRef, (snapshot) => {
                 const count = snapshot.val();
                 counterElement.textContent = count !== null ? count : 0;
+
+                // 버튼 색상 변경
+                if (count % 100 === 0) {
+                    const randomColor = `#${Math.floor(Math.random()*16777215).toString(16)}`;
+                    buttonElement.style.backgroundColor = randomColor;
+                }
+
+                // 버튼이 1000의 배수일 때 무지개 효과
+                if (count % 1000 === 0 && count !== 0) {
+                    buttonElement.classList.add('rainbow');
+                    audio.play();
+                    setTimeout(() => {
+                        buttonElement.classList.remove('rainbow');
+                    }, 10000);
+                }
             });
 
             // 버튼 클릭 시 데이터베이스 값 증가시키기
@@ -140,7 +163,7 @@
                     const message = messages[id];
                     const messageElement = document.createElement('div');
                     messageElement.classList.add('message');
-                    messageElement.innerHTML = `<span class="nickname">${message.username}</span>: ${message.text} <span class="count">(${message.count || 0} clicks)</span>`;
+                    messageElement.innerHTML = `<span class="nickname">${message.username}</span>: ${message.text}`;
                     messagesContainer.appendChild(messageElement);
                 }
                 messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
@@ -154,11 +177,25 @@
                     const newMessageRef = push(messagesRef);
                     set(newMessageRef, {
                         username: username,
-                        text: messageText
+                        text: messageText,
+                        timestamp: Date.now()
                     });
                     messageInput.value = ''; // Clear input
                 }
             });
+
+            // 오래된 채팅 자동 삭제
+            setInterval(() => {
+                const now = Date.now();
+                onValue(messagesRef, (snapshot) => {
+                    const messages = snapshot.val();
+                    for (const id in messages) {
+                        if (now - messages[id].timestamp > 3600000) { // 1시간(3600000ms) 이상 된 메시지 삭제
+                            remove(ref(database, `messages/${id}`));
+                        }
+                    }
+                });
+            }, 60000); // 1분마다 체크
         });
     </script>
 </head>
