@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>숭배 버튼</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .counter {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 20px 40px;
+            font-size: 1.5em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <!-- Firebase 설정 코드를 여기에 추가합니다 -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js"></script>
+    <script>
+        // 여기에 Firebase 프로젝트 설정 코드를 붙여넣기 합니다.
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // Firebase 초기화
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+</head>
+<body>
+    <div class="counter" id="counter">0</div>
+    <button class="button" id="worshipButton">숭배</button>
+
+    <script>
+        const counterElement = document.getElementById('counter');
+        const buttonElement = document.getElementById('worshipButton');
+        const countRef = firebase.database().ref('count');
+
+        // 실시간으로 데이터베이스 값 가져오기
+        countRef.on('value', (snapshot) => {
+            const count = snapshot.val();
+            counterElement.textContent = count;
+        });
+
+        // 버튼 클릭 시 데이터베이스 값 증가시키기
+        buttonElement.addEventListener('click', () => {
+            countRef.transaction((currentCount) => {
+                return (currentCount || 0) + 1;
+            });
+        });
+    </script>
+</body>
+</html>
