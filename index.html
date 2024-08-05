@@ -32,46 +32,53 @@
             background-color: #0056b3;
         }
     </style>
-    <!-- Firebase 설정 코드를 여기에 추가합니다 -->
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js"></script>
-    <script>
-        // 여기에 Firebase 프로젝트 설정 코드를 붙여넣기 합니다.
+    <!-- Firebase 설정 코드를 포함합니다 -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-analytics.js";
+
+        // Your web app's Firebase configuration
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyDkwzgmbuunJIbUHfb1mRQqXtLFuaKw-II",
+            authDomain: "test1-17e00.firebaseapp.com",
+            databaseURL: "https://test1-17e00-default-rtdb.firebaseio.com",
+            projectId: "test1-17e00",
+            storageBucket: "test1-17e00.appspot.com",
+            messagingSenderId: "177784245942",
+            appId: "1:177784245942:web:d8a99c7af4b7f5f2986017",
+            measurementId: "G-CP05B0T41V"
         };
-        // Firebase 초기화
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const database = getDatabase(app);
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const counterElement = document.getElementById('counter');
+            const buttonElement = document.getElementById('worshipButton');
+            const countRef = ref(database, 'count');
+
+            // 실시간으로 데이터베이스 값 가져오기
+            onValue(countRef, (snapshot) => {
+                const count = snapshot.val();
+                counterElement.textContent = count;
+            });
+
+            // 버튼 클릭 시 데이터베이스 값 증가시키기
+            buttonElement.addEventListener('click', () => {
+                runTransaction(countRef, (currentCount) => {
+                    return (currentCount || 0) + 1;
+                });
+            });
+        });
     </script>
 </head>
 <body>
     <div class="counter" id="counter">0</div>
     <button class="button" id="worshipButton">숭배</button>
-
-    <script>
-        const counterElement = document.getElementById('counter');
-        const buttonElement = document.getElementById('worshipButton');
-        const countRef = firebase.database().ref('count');
-
-        // 실시간으로 데이터베이스 값 가져오기
-        countRef.on('value', (snapshot) => {
-            const count = snapshot.val();
-            counterElement.textContent = count;
-        });
-
-        // 버튼 클릭 시 데이터베이스 값 증가시키기
-        buttonElement.addEventListener('click', () => {
-            countRef.transaction((currentCount) => {
-                return (currentCount || 0) + 1;
-            });
-        });
-    </script>
 </body>
 </html>
+
