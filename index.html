@@ -64,7 +64,7 @@
             // 실시간으로 데이터베이스 값 가져오기
             onValue(countRef, (snapshot) => {
                 const count = snapshot.val();
-                counterElement.textContent = count;
+                counterElement.textContent = count !== null ? count : 0;
             });
 
             // 버튼 클릭 시 데이터베이스 값 증가시키기
@@ -81,4 +81,3 @@
     <button class="button" id="worshipButton">숭배</button>
 </body>
 </html>
-
