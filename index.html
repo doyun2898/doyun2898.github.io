@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>숭배 버튼 및 게시판</title>
+    <title>장정은 수령 숭배</title>
     <style>
         body {
             display: flex;
@@ -14,6 +14,62 @@
             margin: 0;
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
+        }
+        .menu-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+        }
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        .menu-dropdown button {
+            display: block;
+            background: none;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .menu-dropdown button:hover {
+            background-color: #f0f0f0;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .modal-content button {
+            margin-top: 20px;
         }
         .counter {
             font-size: 3em;
@@ -31,6 +87,13 @@
         }
         .button:hover {
             background-color: #0056b3;
+        }
+        .admin-buttons {
+            display: none;
+            margin-top: 20px;
+        }
+        .admin-buttons button {
+            margin: 0 10px;
         }
         .chat-container {
             margin-top: 30px;
@@ -159,56 +222,106 @@
                 const messages = snapshot.val();
                 const messagesContainer = document.getElementById('messages');
                 messagesContainer.innerHTML = '';
-                for (const id in messages) {
-                    const message = messages[id];
+                const messageKeys = Object.keys(messages || {});
+                messageKeys.slice(-300).forEach((key) => {
+                    const message = messages[key];
                     const messageElement = document.createElement('div');
                     messageElement.classList.add('message');
                     messageElement.innerHTML = `<span class="nickname">${message.username}</span>: ${message.text}`;
                     messagesContainer.appendChild(messageElement);
-                }
-                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
-            });
-
-            // 메시지 전송 처리
-            document.getElementById('sendMessage').addEventListener('click', () => {
-                const messageInput = document.getElementById('messageInput');
-                const messageText = messageInput.value;
-                if (messageText) {
-                    const newMessageRef = push(messagesRef);
-                    set(newMessageRef, {
-                        username: username,
-                        text: messageText,
-                        timestamp: Date.now()
-                    });
-                    messageInput.value = ''; // Clear input
-                }
-            });
-
-            // 오래된 채팅 자동 삭제
-            setInterval(() => {
-                const now = Date.now();
-                onValue(messagesRef, (snapshot) => {
-                    const messages = snapshot.val();
-                    for (const id in messages) {
-                        if (now - messages[id].timestamp > 3600000) { // 1시간(3600000ms) 이상 된 메시지 삭제
-                            remove(ref(database, `messages/${id}`));
-                        }
-                    }
                 });
-            }, 60000); // 1분마다 체크
+
+                // 채팅 수가 300개가 넘으면 오래된 채팅 삭제
+                if (messageKeys.length > 300) {
+                    const keysToRemove = messageKeys.slice(0, messageKeys.length - 300);
+                    keysToRemove.forEach((key) => {
+                        remove(ref(database, `messages/${key}`));
+                    });
+                }
+            });
+
+            // 채팅 메시지 보내기
+            const chatForm = document.getElementById('chatForm');
+            chatForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const messageInput = document.getElementById('messageInput');
+                const newMessageRef = push(messagesRef);
+                set(newMessageRef, {
+                    username: username,
+                    text: messageInput.value
+                });
+                messageInput.value = '';
+            });
+
+            // 메뉴 버튼 클릭 시 메뉴 펼치기
+            const menuButton = document.getElementById('menuButton');
+            const menuDropdown = document.getElementById('menuDropdown');
+            menuButton.addEventListener('click', () => {
+                menuDropdown.style.display = menuDropdown.style.display === 'block' ? 'none' : 'block';
+            });
+
+            // 사이트 설명 클릭 시 모달 열기
+            const siteDescriptionButton = document.getElementById('siteDescription');
+            const siteDescriptionModal = document.getElementById('siteDescriptionModal');
+            const siteDescriptionClose = document.getElementById('siteDescriptionClose');
+            siteDescriptionButton.addEventListener('click', () => {
+                siteDescriptionModal.style.display = 'flex';
+                menuDropdown.style.display = 'none';
+            });
+            siteDescriptionClose.addEventListener('click', () => {
+                siteDescriptionModal.style.display = 'none';
+            });
+
+            // 관리자 메뉴 클릭 시 비밀번호 입력
+            const adminMenuButton = document.getElementById('adminMenu');
+            adminMenuButton.addEventListener('click', () => {
+                const password = prompt('비밀번호를 입력하세요:');
+                if (password === '1006') {
+                    document.getElementById('adminButtons').style.display = 'flex';
+                } else {
+                    alert('비밀번호가 틀렸습니다.');
+                }
+                menuDropdown.style.display = 'none';
+            });
+
+            // 관리자 버튼 기능 구현
+            const addButton = document.getElementById('add100Button');
+            const clearChatButton = document.getElementById('clearChatButton');
+            addButton.addEventListener('click', () => {
+                runTransaction(countRef, (currentCount) => {
+                    return (currentCount || 0) + 100;
+                });
+            });
+            clearChatButton.addEventListener('click', () => {
+                remove(messagesRef);
+            });
         });
     </script>
 </head>
 <body>
-    <div class="counter" id="counter">0</div>
-    <button class="button" id="worshipButton">숭배</button>
-
-    <div class="chat-container">
-        <div class="messages" id="messages"></div>
-        <div class="input-container">
-            <input type="text" id="messageInput" placeholder="메시지를 입력하세요...">
-            <button id="sendMessage">전송</button>
+    <button id="menuButton" class="menu-button">메뉴</button>
+    <div id="menuDropdown" class="menu-dropdown">
+        <button id="siteDescription">사이트 설명</button>
+        <button id="adminMenu">관리자 메뉴</button>
+    </div>
+    <div id="siteDescriptionModal" class="modal">
+        <div class="modal-content">
+            <p>이 사이트는 장정은 수령동지를 찬양, 경배 및 숭배하기 위해 만들어졌습니다.</p>
+            <button id="siteDescriptionClose">닫기</button>
         </div>
+    </div>
+    <div class="counter" id="counter">0</div>
+    <button id="worshipButton" class="button">숭배</button>
+    <div id="adminButtons" class="admin-buttons">
+        <button id="add100Button" class="button">+100</button>
+        <button id="clearChatButton" class="button">채팅 삭제</button>
+    </div>
+    <div class="chat-container">
+        <div id="messages" class="messages"></div>
+        <form id="chatForm" class="input-container">
+            <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." required>
+            <button type="submit">전송</button>
+        </form>
     </div>
 </body>
 </html>
