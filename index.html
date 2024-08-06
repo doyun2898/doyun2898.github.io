@@ -61,7 +61,7 @@
             align-items: center;
             z-index: 2;
         }
-        .modal-content {
+        .modal-content, .modal-turk {
             background-color: white;
             padding: 20px;
             border-radius: 10px;
@@ -70,6 +70,10 @@
         }
         .modal-content button {
             margin-top: 20px;
+        }
+        .modal-turk {
+            font-size: 5em;
+            color: red;
         }
         .counter {
             font-size: 3em;
@@ -89,11 +93,21 @@
             background-color: #0056b3;
         }
         .admin-buttons {
-            display: none;
+            display: flex;
             margin-top: 20px;
+            gap: 10px;
         }
         .admin-buttons button {
-            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 0.75em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .admin-buttons button:hover {
+            background-color: #0056b3;
         }
         .chat-container {
             margin-top: 30px;
@@ -109,6 +123,7 @@
             max-height: 300px;
             overflow-y: auto;
             margin-bottom: 20px;
+            position: relative;
         }
         .message {
             margin-bottom: 10px;
@@ -136,6 +151,23 @@
         .input-container button:hover {
             background-color: #0056b3;
         }
+        .announcement {
+            font-weight: bold;
+            margin-bottom: 10px;
+            background-color: yellow;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .announcement-hidden {
+            display: none;
+        }
+        .announcement-arrow {
+            cursor: pointer;
+            margin-left: 10px;
+        }
         @keyframes rainbow {
             0% { background-color: #ff0000; }
             14% { background-color: #ff7f00; }
@@ -154,7 +186,7 @@
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, push, runTransaction, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, push, runTransaction, remove, limitToLast, query, orderByKey } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-analytics.js";
 
         // Your web app's Firebase configuration
@@ -204,36 +236,47 @@
                 }
             });
 
-            // 버튼 클릭 시 데이터베이스 값 증가시키기
+            // 클릭 시 값 증가
             buttonElement.addEventListener('click', () => {
                 runTransaction(countRef, (currentCount) => {
                     return (currentCount || 0) + 1;
-                }).then(() => {
-                    // Update user's click count
-                    const userRef = ref(database, `users/${username}`);
-                    runTransaction(userRef, (user) => {
-                        return (user || 0) + 1;
-                    });
                 });
             });
 
-            // 실시간으로 메시지 가져오기
+            // 채팅 메시지 추가
             onValue(messagesRef, (snapshot) => {
                 const messages = snapshot.val();
                 const messagesContainer = document.getElementById('messages');
                 messagesContainer.innerHTML = '';
-                const messageKeys = Object.keys(messages || {});
-                messageKeys.slice(-300).forEach((key) => {
+                const keys = Object.keys(messages || {});
+
+                keys.forEach((key) => {
                     const message = messages[key];
                     const messageElement = document.createElement('div');
                     messageElement.classList.add('message');
-                    messageElement.innerHTML = `<span class="nickname">${message.username}</span>: ${message.text}`;
+                    messageElement.textContent = `${message.username}: ${message.text}`;
                     messagesContainer.appendChild(messageElement);
                 });
 
-                // 채팅 수가 300개가 넘으면 오래된 채팅 삭제
-                if (messageKeys.length > 300) {
-                    const keysToRemove = messageKeys.slice(0, messageKeys.length - 300);
+                // 박성진 메시지 처리
+                keys.forEach((key) => {
+                    const message = messages[key];
+                    if (message.text === '박성진') {
+                        const turkModal = document.createElement('div');
+                        turkModal.classList.add('modal');
+                        turkModal.innerHTML = '<div class="modal-turk">턱</div>';
+                        document.body.appendChild(turkModal);
+                        turkModal.style.display = 'flex';
+                        setTimeout(() => {
+                            turkModal.style.display = 'none';
+                            document.body.removeChild(turkModal);
+                        }, 1000);
+                    }
+                });
+
+                // 채팅 수 제한
+                if (keys.length > 300) {
+                    const keysToRemove = keys.slice(0, keys.length - 300);
                     keysToRemove.forEach((key) => {
                         remove(ref(database, `messages/${key}`));
                     });
@@ -246,11 +289,54 @@
                 event.preventDefault();
                 const messageInput = document.getElementById('messageInput');
                 const newMessageRef = push(messagesRef);
-                set(newMessageRef, {
-                    username: username,
-                    text: messageInput.value
-                });
+
+                if (messageInput.value.startsWith('/공지:')) {
+                    const announcementText = messageInput.value.substring(4).trim();
+                    set(ref(database, 'announcement'), { text: announcementText });
+                } else if (messageInput.value.trim() === '/공지 제거') {
+                    remove(ref(database, 'announcement'));
+                } else {
+                    set(newMessageRef, {
+                        username: username,
+                        text: messageInput.value
+                    });
+                }
                 messageInput.value = '';
+            });
+
+            // 공지 추가 및 제거
+            const announcementRef = ref(database, 'announcement');
+            onValue(announcementRef, (snapshot) => {
+                const announcement = snapshot.val();
+                const messagesContainer = document.getElementById('messages');
+                const announcementElement = document.getElementById('announcement');
+                if (announcement) {
+                    if (!announcementElement) {
+                        const newAnnouncement = document.createElement('div');
+                        newAnnouncement.id = 'announcement';
+                        newAnnouncement.classList.add('announcement');
+                        newAnnouncement.innerHTML = `
+                            <span>${announcement.text}</span>
+                            <span class="announcement-arrow">&#9660;</span>
+                            <div class="announcement-menu">
+                                <button id="closeAnnouncement">공지 닫기</button>
+                            </div>
+                        `;
+                        messagesContainer.insertBefore(newAnnouncement, messagesContainer.firstChild);
+                        document.getElementById('closeAnnouncement').addEventListener('click', () => {
+                            newAnnouncement.classList.add('announcement-hidden');
+                        });
+                        newAnnouncement.querySelector('.announcement-arrow').addEventListener('click', () => {
+                            const menu = newAnnouncement.querySelector('.announcement-menu');
+                            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+                        });
+                    } else {
+                        announcementElement.querySelector('span').textContent = announcement.text;
+                        announcementElement.classList.remove('announcement-hidden');
+                    }
+                } else if (announcementElement) {
+                    announcementElement.remove();
+                }
             });
 
             // 메뉴 버튼 클릭 시 메뉴 펼치기
@@ -287,6 +373,7 @@
             // 관리자 버튼 기능 구현
             const addButton = document.getElementById('add100Button');
             const clearChatButton = document.getElementById('clearChatButton');
+            const deleteLastChatButton = document.getElementById('deleteLastChatButton');
             addButton.addEventListener('click', () => {
                 runTransaction(countRef, (currentCount) => {
                     return (currentCount || 0) + 100;
@@ -294,6 +381,14 @@
             });
             clearChatButton.addEventListener('click', () => {
                 remove(messagesRef);
+            });
+            deleteLastChatButton.addEventListener('click', () => {
+                const queryRef = query(messagesRef, orderByKey(), limitToLast(1));
+                onValue(queryRef, (snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        remove(ref(database, `messages/${childSnapshot.key}`));
+                    });
+                });
             });
         });
     </script>
@@ -312,9 +407,10 @@
     </div>
     <div class="counter" id="counter">0</div>
     <button id="worshipButton" class="button">숭배</button>
-    <div id="adminButtons" class="admin-buttons">
+    <div id="adminButtons" class="admin-buttons" style="display: none;">
         <button id="add100Button" class="button">+100</button>
         <button id="clearChatButton" class="button">채팅 삭제</button>
+        <button id="deleteLastChatButton" class="button">최근 채팅 삭제</button>
     </div>
     <div class="chat-container">
         <div id="messages" class="messages"></div>
